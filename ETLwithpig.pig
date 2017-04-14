@@ -1,0 +1,15 @@
+ Police = LOAD 'bxt160230/hive_table.csv' using PigStorage('+');
+ B = LOAD 'bxt160230/Population.csv' using PigStorage(',');
+ Police_zip = foreach Police generate $1 as serviceid, $5 as zipcode;
+ STORE Police_zip INTO 'bxt160230/pig_policezip' USING PigStorage (',');
+ Police_zip = LOAD 'bxt160230/pig_policezip' USING PigStorage (',') as (serviceid: chararray , zipcode:chararray);
+ Incidents_grp = group Police_zip by zipcode;
+ Incidents_cnt_zip = foreach Incidents_grp generate group , COUNT(Police_zip.serviceid) as crimerate;
+ Population = foreach B generate $0 as zipcode , $1 as population;
+ STORE Population INTO 'bxt160230/pig_pop' USING PigStorage (',');
+ Population = LOAD 'bxt160230/pig_pop' USING PigStorage (',') as (zipcode:chararray , population: double);
+ Police_Pop = JOIN Incidents_cnt_zip by group, Population by zipcode ; 
+ pop_zip_crimerate = foreach Police_Pop generate (double)Incidents_cnt_zip::crimerate as crimerate , Population::population as pop ;
+ rel = GROUP pop_zip_crimerate ALL;
+ correlat = foreach rel GENERATE COR(pop_zip_crimerate.crimerate , pop_zip_crimerate.pop);
+ dump correlat;
